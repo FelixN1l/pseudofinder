@@ -280,7 +280,7 @@ MATCH_COORD_WINDOW = 0.1
 
 # check if an SV maps closely with an intron based on their respective start and end coordinates
 def sv_matches_intron(sv_start, sv_end, intron_start, intron_end):
-    return (max(intron_start,sv_start) - intron_start) + (intron_end - min(intron_end,sv_end)) / (intron_end - intron_start) <= MATCH_COORD_WINDOW
+    return ((max(intron_start,sv_start) - intron_start) + (intron_end - min(intron_end,sv_end))) / (intron_end - intron_start) <= MATCH_COORD_WINDOW
 
 OUTPUT_HEADER = "sample,gene,max_introns,num_introns_affected,introns_affected"
 
