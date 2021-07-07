@@ -5,7 +5,6 @@ Copyright   : (c) Bernie Pope, 08 Apr 2021
 License     : MIT 
 Maintainer  : bjpope@unimelb.edu.au 
 Portability : POSIX
-
 Find processed pseudo genes in DNA sequencing data using input structural variant calls
 '''
 
@@ -36,7 +35,6 @@ except pkg_resources.DistributionNotFound:
 def exit_with_error(message, exit_status):
     '''Print an error message to stderr, prefixed by the program name and 'ERROR'.
     Then exit program with supplied exit status.
-
     Arguments:
         message: an error message as a string.
         exit_status: a positive integer representing the exit status of the
@@ -63,9 +61,12 @@ def parse_args():
     parser.add_argument(
         '--sample', metavar='STR', type=str, required=True, 
         help='Name of sample')
+    parser.add_argument('--threshold', metavar='FLOAT', type=float, required=True,
+                        help='The threshold to determine whether an SV and an intron are matching, this float should between 0 to 0.1.')
     parser.add_argument('--version', action='version', version='%(prog)s ' + PROGRAM_VERSION)
     parser.add_argument('--log', metavar='LOG_FILE', type=str,
                         help='record program progress in LOG_FILE')
+
     return parser.parse_args()
 
 
@@ -74,7 +75,6 @@ def init_logging(log_filename):
     initialise the logging facility, and write log statement
     indicating the program has started, and also write out the
     command line from sys.argv
-
     Arguments:
         log_filename: either None, if logging is not required, or the
             string name of the log file to write to
@@ -151,11 +151,9 @@ def read_exons(exon_filename):
 
 '''
 According to VCF 4.2 spec, section 5.4
-
 There are 4 possible ways to create the ALT in a SVTYPE=BND. In each of the 4 cases,
 the assertion is that s (the REF) is replaced with t, and then some piece starting at
 position p is joined to t. The cases are:
-
 s t[p[ piece extending to the right of p is joined after t
 s t]p] reverse comp piece extending left of p is joined after t
 s ]p]t piece extending to the left of p is joined before t
@@ -275,16 +273,17 @@ class NormSV(object):
         else:
             exit_with_error("Unsupported SVTYPE: {}".format(sv_type), EXIT_VCF_FILE_ERROR)
 
-# The threshold to determine whether an SV and an intron are matching 
-MATCH_COORD_WINDOW = 0.1
-
 # check if an SV maps closely with an intron based on their respective start and end coordinates
-def sv_matches_intron(sv_start, sv_end, intron_start, intron_end):
-    return ((max(intron_start,sv_start) - intron_start) + (intron_end - min(intron_end,sv_end))) / (intron_end - intron_start) <= MATCH_COORD_WINDOW
+def sv_matches_intron(sv_start, sv_end, intron_start, intron_end, MATCH_COORD_WINDOW):
+    for interval1 in intron_tree[start]:
+        for interval2 in intron_tree[end]:
+            if interval1.data[0] == interval2.data[0]:
+                return ((max(intron_start,sv_start) - intron_start) + (intron_end - min(intron_end,sv_end))) / (intron_end - intron_start) <= MATCH_COORD_WINDOW
+            else return False
 
 OUTPUT_HEADER = "sample,gene,max_introns,num_introns_affected,introns_affected"
 
-def process_variants(sample, gene_intron_count, gene_introns, vcf_filename):
+def process_variants(sample, gene_intron_count, gene_introns, vcf_filename, MATCH_COORD_WINDOW):
     logging.info(f"Processing VCF file from {vcf_filename}")
     print(OUTPUT_HEADER)
     vcf = VCF(vcf_filename)
@@ -305,9 +304,9 @@ def process_variants(sample, gene_intron_count, gene_introns, vcf_filename):
                     if chrom in gene_introns:
                         intron_tree = gene_introns[chrom]
                         for intersection in intron_tree[start:end]:
-                            if sv_matches_intron(start, end, intersection.begin, intersection.end):
+                            if sv_matches_intron(start, end, intersection.begin, intersection.end, MATCH_COORD_WINDOW):
                                 intersected_gene, intersected_intron = intersection.data
-                                gene_hits[intersected_gene].add(intersected_intron)
+                                    gene_hits[intersected_gene].add(intersected_intron)
             except SVException:
                 # skip over any variant we cannot parse
                 pass
@@ -323,7 +322,7 @@ def main():
     options = parse_args()
     init_logging(options.log)
     gene_intron_count, gene_introns = read_exons(options.exons)
-    process_variants(options.sample, gene_intron_count, gene_introns, options.vars)
+    process_variants(options.sample, gene_intron_count, gene_introns, options.vars, options.threshold)
 
 
 # If this script is run from the command line then call the main function.
