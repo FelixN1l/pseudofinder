@@ -307,7 +307,7 @@ def process_variants(sample, gene_intron_count, gene_introns, vcf_filename, MATC
                         for intersection in intron_tree[start:end]:
                             if sv_matches_intron(start, end, intersection.begin, intersection.end, MATCH_COORD_WINDOW):
                                 intersected_gene, intersected_intron = intersection.data
-                                    gene_hits[intersected_gene].add(intersected_intron)
+                                gene_hits[intersected_gene].add(intersected_intron)
             except SVException:
                 # skip over any variant we cannot parse
                 pass
