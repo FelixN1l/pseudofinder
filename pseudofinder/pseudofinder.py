@@ -279,7 +279,8 @@ def sv_matches_intron(sv_start, sv_end, intron_start, intron_end, MATCH_COORD_WI
         for interval2 in intron_tree[end]:
             if interval1.data[0] == interval2.data[0]:
                 return ((max(intron_start,sv_start) - intron_start) + (intron_end - min(intron_end,sv_end))) / (intron_end - intron_start) <= MATCH_COORD_WINDOW
-            else return False
+            else:
+                return False
 
 OUTPUT_HEADER = "sample,gene,max_introns,num_introns_affected,introns_affected"
 
