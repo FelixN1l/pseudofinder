@@ -275,8 +275,8 @@ class NormSV(object):
 
 # check if an SV maps closely with an intron based on their respective start and end coordinates
 def sv_matches_intron(sv_start, sv_end, intron_start, intron_end, intron_tree):
-    for interval1 in intron_tree[start]:
-        for interval2 in intron_tree[end]:
+    for interval1 in intron_tree[sv_start]:
+        for interval2 in intron_tree[sv_end]:
             if interval1.data[0] == interval2.data[0]:
                 return ((max(intron_start,sv_start) - intron_start) + (intron_end - min(intron_end,sv_end))) / (intron_end - intron_start) <= WINDOW
             else:
