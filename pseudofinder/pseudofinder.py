@@ -278,14 +278,15 @@ def sv_matches_intron(sv_start, sv_end, intron_start, intron_end, intron_tree):
     for interval1 in intron_tree[start]:
         for interval2 in intron_tree[end]:
             if interval1.data[0] == interval2.data[0]:
-                return ((max(intron_start,sv_start) - intron_start) + (intron_end - min(intron_end,sv_end))) / (intron_end - intron_start) <= MATCH_COORD_WINDOW
+                return ((max(intron_start,sv_start) - intron_start) + (intron_end - min(intron_end,sv_end))) / (intron_end - intron_start) <= WINDOW
             else:
                 return False
 
 OUTPUT_HEADER = "sample,gene,max_introns,num_introns_affected,introns_affected"
 
 def process_variants(sample, gene_intron_count, gene_introns, vcf_filename, MATCH_COORD_WINDOW):
-    global MATCH_COORD_WINDOW
+    global WINDOW
+    WINDOW = MATCH_COORD_WINDOW
     logging.info(f"Processing VCF file from {vcf_filename}")
     print(OUTPUT_HEADER)
     vcf = VCF(vcf_filename)
