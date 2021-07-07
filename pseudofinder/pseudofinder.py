@@ -274,7 +274,7 @@ class NormSV(object):
             exit_with_error("Unsupported SVTYPE: {}".format(sv_type), EXIT_VCF_FILE_ERROR)
 
 # check if an SV maps closely with an intron based on their respective start and end coordinates
-def sv_matches_intron(sv_start, sv_end, intron_start, intron_end, MATCH_COORD_WINDOW):
+def sv_matches_intron(sv_start, sv_end, intron_start, intron_end, intron_tree):
     for interval1 in intron_tree[start]:
         for interval2 in intron_tree[end]:
             if interval1.data[0] == interval2.data[0]:
@@ -285,6 +285,7 @@ def sv_matches_intron(sv_start, sv_end, intron_start, intron_end, MATCH_COORD_WI
 OUTPUT_HEADER = "sample,gene,max_introns,num_introns_affected,introns_affected"
 
 def process_variants(sample, gene_intron_count, gene_introns, vcf_filename, MATCH_COORD_WINDOW):
+    global MATCH_COORD_WINDOW
     logging.info(f"Processing VCF file from {vcf_filename}")
     print(OUTPUT_HEADER)
     vcf = VCF(vcf_filename)
@@ -305,7 +306,7 @@ def process_variants(sample, gene_intron_count, gene_introns, vcf_filename, MATC
                     if chrom in gene_introns:
                         intron_tree = gene_introns[chrom]
                         for intersection in intron_tree[start:end]:
-                            if sv_matches_intron(start, end, intersection.begin, intersection.end, MATCH_COORD_WINDOW):
+                            if sv_matches_intron(start, end, intersection.begin, intersection.end, intron_tree):
                                 intersected_gene, intersected_intron = intersection.data
                                 gene_hits[intersected_gene].add(intersected_intron)
             except SVException:
