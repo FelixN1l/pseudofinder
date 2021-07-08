@@ -94,6 +94,7 @@ def init_logging(log_filename):
 def read_exons(exon_filename):
     # map from gene name to collection of introns
     genes_introns = defaultdict(set)
+    genes_exons = defaultdict(set)
     # map from gene name to chromosome, assume each gene is only on one chromosome
     genes_chroms = {}
     with open(exon_filename) as file:
@@ -123,21 +124,24 @@ def read_exons(exon_filename):
                         else:
                             # convert exon starts and ends into intro starts ends (shift exon starts down by one)
                             intron_intervals = zip(exon_ends, exon_starts[1:])
+                            exon_intervals = zip(exon_starts, exon_ends)
                             for pos1, pos2 in intron_intervals:
                                 genes_introns[gene].add((pos1, pos2))
+                            for pos3, pos4 in exon_intervals:
+                                genes_exons[gene].add((pos3, pos4))
 
     # map chrom to interval tree
-    result = {}
+    result_intron = {}
     # map from gene to maximum number of introns
     gene_intron_count = defaultdict(int)
     for gene, introns in genes_introns.items():
         chrom = genes_chroms[gene]
         # add all the intron intervals into a tree, one tree per chromosome
-        if chrom not in result:
+        if chrom not in result_intron:
             intron_tree = IntervalTree()
-            result[chrom] = intron_tree 
+            result_intron[chrom] = intron_tree 
         else:
-            intron_tree = result[chrom]
+            intron_tree = result_intron[chrom]
         # number every intron in sorted order
         # XXX check boundary conditions here, do we need to +/- 1 pos from start/end?
         sorted_introns = sorted(introns)
@@ -145,8 +149,23 @@ def read_exons(exon_filename):
         for intron_number, (pos1, pos2) in enumerate(introns):
             # skip over empty introns, they can occur in the data when exons are immediately adjacent
             if pos1 != pos2:
-                intron_tree[pos1:pos2] = (gene, intron_number) 
-    return gene_intron_count, result
+                intron_tree[pos1:pos2] = (gene, intron_number)
+    # map exons to interval tree
+    result_exon = {}
+    for gene, exons in genes_exons.items():
+        chrom = genes_chroms[gene]
+        # add all the exon intervals into a tree, one tree per chromosome
+        if chrom not in result_exon:
+            exon_tree = IntervalTree()
+            result_exon[chrom] = exon_tree 
+        else:
+            exon_tree = result_exon[chrom]
+        # number every exon in sorted order
+        sorted_exons = sorted(exons)
+        gene_exon_count[gene] = len(sorted_exons)
+        for exon_number, (pos1, pos2) in enumerate(exons):
+            exon_tree[pos1:pos2] = (gene, exon_number)
+    return gene_intron_count, result_intron, gene_exon_count, result_exon
 
 
 '''
@@ -284,7 +303,7 @@ def sv_matches_intron(sv_start, sv_end, intron_start, intron_end, intron_tree):
 
 OUTPUT_HEADER = "sample,gene,max_introns,num_introns_affected,introns_affected"
 
-def process_variants(sample, gene_intron_count, gene_introns, vcf_filename, MATCH_COORD_WINDOW):
+def process_variants(sample, gene_intron_count, gene_introns, gene_exons, vcf_filename, MATCH_COORD_WINDOW):
     global WINDOW
     WINDOW = MATCH_COORD_WINDOW
     logging.info(f"Processing VCF file from {vcf_filename}")
@@ -306,6 +325,7 @@ def process_variants(sample, gene_intron_count, gene_introns, vcf_filename, MATC
                     # find all the introns that this variant overlaps
                     if chrom in gene_introns:
                         intron_tree = gene_introns[chrom]
+                        exon_tree = gene_exons[chrom]
                         for intersection in intron_tree[start:end]:
                             if sv_matches_intron(start, end, intersection.begin, intersection.end, intron_tree):
                                 intersected_gene, intersected_intron = intersection.data
@@ -324,8 +344,8 @@ def main():
     "Orchestrate the execution of the program"
     options = parse_args()
     init_logging(options.log)
-    gene_intron_count, gene_introns = read_exons(options.exons)
-    process_variants(options.sample, gene_intron_count, gene_introns, options.vars, options.threshold)
+    gene_intron_count, gene_introns, gene_exon_count, gene_exons = read_exons(options.exons)
+    process_variants(options.sample, gene_intron_count, gene_introns,gene_exons, options.vars, options.threshold)
 
 
 # If this script is run from the command line then call the main function.
